@@ -1,0 +1,8 @@
+1
+00:00:03,041 --> 00:00:08,041
+Le premier sous-titre est de moi.
+
+2
+00:00:54,625 --> 00:00:59,625
+Exemple de texte de sous-titre
+
