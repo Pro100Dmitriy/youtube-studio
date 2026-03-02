@@ -33,15 +33,16 @@ async function main() {
 	// 		{ langCode: 'fr', filePath: `./captions/${ videoId }/fr.srt`, name: 'Français' }
 	// 	]
 	// )
+
 	await updateMultipleVideosFull(
 		authClient,
 		[
 			{
 				videoId: videoId,
 				localizations: {
-					ru: { title: 'Мой тестовое название 2', description: 'Мой тестовое описание 2' },
-					en: { title: 'My test title 2', description: 'My test description 2' },
-					fr: { title: 'Mon titre de test 2', description: 'Description de mon test 2' }
+					ru: { title: 'Мой тестовое название 3', description: 'Мой тестовое описание 3' },
+					en: { title: 'My test title 3', description: 'My test description 3' },
+					fr: { title: 'Mon titre de test 3', description: 'Description de mon test 3' }
 				},
 				captions: [
 					{ langCode: 'ru', filePath: `./captions/${ videoId }/ru.srt` },
