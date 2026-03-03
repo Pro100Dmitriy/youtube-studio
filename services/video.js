@@ -183,9 +183,4 @@ async function updateMultipleVideosFull( authClient, videos ) {
 }
 
 
-module.exports = {
-	getVideoInfo,
-	updateVideoHeadingsWithLocalizations,
-	updateVideoFull,
-	updateMultipleVideosFull
-}
+module.exports = updateMultipleVideosFull
