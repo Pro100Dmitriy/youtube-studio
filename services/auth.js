@@ -19,7 +19,7 @@ const SCOPES = [
 const pendingOAuth = new Map()
 
 function getAccountDir( email ) {
-	return path.join( __dirname, 'accounts', email )
+	return path.join( __dirname, '../accounts', email )
 }
 
 function readClientSecret( email ) {

@@ -1,0 +1,21 @@
+services:
+  youtube-studio:
+    image: youtube-studio:latest
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../db.json:/app/db.json
+      - ../accounts:/app/accounts
+      - ../videos:/app/videos
+    restart: unless-stopped
+    container_name: youtube_studio
+    networks:
+      - youtube_studio_network
+
+networks:
+  youtube_studio_network:
+    name: youtube_studio_network
+    driver: bridge

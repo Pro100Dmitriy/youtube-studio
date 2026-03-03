@@ -2,6 +2,9 @@ client_secret.json
 token.json
 node_modules
 .idea
-accounts/*/token.json
-accounts/*/client_secret.json
+accounts/**
+!accounts/.gitkeep
+videos/**
+!videos/.gitkeep
 db.json
+.env

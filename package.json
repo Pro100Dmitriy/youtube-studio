@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/local-auth": "^3.0.1",
     "express": "^5.2.1",
     "googleapis": "^171.4.0",
     "https-proxy-agent": "^7.0.6",

@@ -1,0 +1,8 @@
+node_modules
+accounts
+videos
+db.json
+.git
+.idea
+*.md
+.env

@@ -5,50 +5,72 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run go        # Run the main script (node main.js)
-node main.js      # Direct run
+npm run server    # Start Express server (node server.js) at http://localhost:3000
+npm run go        # Run legacy CLI script (node main.js) — kept for reference
 ```
 
 No tests or linters are configured.
 
 ## Architecture
 
-A Node.js CLI tool for automating YouTube video metadata management via the YouTube Data API v3.
+A two-phase Node.js system for automating YouTube video metadata across multiple accounts. Each account uses its own Google OAuth credentials and an assigned HTTPS proxy.
 
-**Auth flow** (`auth.js`): OAuth 2.0 via `@google-cloud/local-auth`. On first run, opens a browser for manual Google sign-in. Credentials stored in `token.json`. Requires `client_secret.json` (OAuth client credentials from Google Cloud Console).
+**Server** (`server.js`): Express app on port 3000. Serves the frontend from `public/` and mounts two router groups:
+- `routerService` — service endpoints (`/events` SSE stream, `/oauth2callback`)
+- `routerAPI` — REST API under `/api` (accounts, proxies, automation)
 
-**Modules:**
-- `auth.js` — OAuth authorization, token persistence
-- `video.js` — Fetch video info, update localizations (title/description per language), batch update multiple videos
-- `captions.js` — List existing captions, upload or update SRT caption files per language
+### Phase 1: OAuth Onboarding
 
-**Entry point** (`main.js`): Orchestrates calls — currently hardcoded to update a single video (`a-Bxf_pyr2A`) with Russian, English, and French localizations and captions. Most operations are commented out; uncomment the desired function to run it.
+The frontend panel (`public/`) allows adding accounts and triggering OAuth. Flow:
+1. `POST /api/accounts/:email/authorize` → `services/auth.js:startOAuthFlow()` generates an OAuth URL using the account's `client_secret.json` and stores a pending `oauth2Client` in memory (`pendingOAuth` Map)
+2. The URL is opened by the frontend; the user signs in manually
+3. Google redirects to `GET /oauth2callback` → `services/auth.js:finalizeOAuth()` exchanges the code for tokens and writes `token.json` for the account
 
-**Caption files** are stored under `captions/<videoId>/<langCode>.srt`.
+Per-account credential files live at `accounts/<email>/client_secret.json` and `accounts/<email>/token.json`.
 
-**Key data structures:**
+**Note**: `services/auth.js` resolves the accounts directory relative to `__dirname` (`services/`), so files land at `services/accounts/<email>/`.
+
+### Phase 2: Automation
+
+`POST /api/run` accepts `{ accounts: [email], videos: [...] }`, runs in the background, and streams status updates via SSE. For each account it calls `loadAccountAuth(email)` which loads the saved `token.json`, attaches the assigned proxy via `HttpsProxyAgent`, then passes the `oauth2Client` to `updateMultipleVideosFull()`.
+
+### Services
+
+- `services/auth.js` — OAuth flow (Phase 1 & 2), proxy attachment
+- `services/video.js` — `updateMultipleVideosFull(authClient, videos)`: updates title/description localizations, then uploads/updates captions per video. 1s delay between captions, 2s between videos.
+- `services/captions.js` — `uploadOrUpdateCaption()` and `getExistingCaptions()` via YouTube Data API v3
+
+### Database
+
+`db.json` is the flat-file store (schema: `{ accounts: [], proxies: [] }`). Two singleton models extend `DatabaseJSON`:
+- `database/AccountModel.js` — CRUD for accounts, `authorized` flag, `proxyId` assignment
+- `database/ProxiesModel.js` — CRUD for proxies; format on input: `host:port:user:pass`
+
+### Real-time updates (SSE)
+
+`routes/sse.js` maintains a `Set` of open response streams. `emitSSE(data)` broadcasts JSON to all connected clients. Events carry `{ type, email, status, message }`.
+
+### Key data structures
 
 ```js
-// Localizations map passed to video functions
+// Video entry for /api/run
 {
-  ru: { title: '...', description: '...' },
-  en: { title: '...', description: '...' },
+  videoId: 'abc123',
+  localizations: {
+    ru: { title: '...', description: '...' },
+    en: { title: '...', description: '...' }
+  },
+  captions: [
+    { langCode: 'ru', filePath: './videos/<videoId>/captions/ru.srt' }
+  ]
 }
 
-// Caption descriptor array
-[
-  { langCode: 'ru', filePath: './captions/<videoId>/ru.srt' },
-]
-
-// updateMultipleVideosFull input
-[
-  { videoId: '...', localizations: {...}, captions: [...] }
-]
+// Proxy stored in db.json
+{ id: 'proxy-<timestamp>', url: 'http://user:pass@host:port', label: '...' }
 ```
-
-**Rate limiting**: 1s delay between caption uploads, 2s delay between videos (hardcoded in `video.js`).
 
 ## Credentials
 
-- `client_secret.json` — OAuth client config (never commit)
-- `token.json` — Saved access/refresh token (auto-generated on first auth, never commit)
+- `accounts/<email>/client_secret.json` — per-account OAuth client config (never commit)
+- `accounts/<email>/token.json` — saved refresh token (auto-generated on first auth, never commit)
+- `db.json` — contains proxy URLs with credentials (never commit)

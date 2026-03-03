@@ -67,6 +67,7 @@ async function loadAccounts() {
 
 function init() {
 	loadProxies().then( () => loadAccounts() )
+	loadVideos()
 }
 
 // --- Proxies ---
@@ -183,44 +184,66 @@ function renderAccountSelect() {
 		).join( '' )
 }
 
-let videoCards = []
+// --- Videos (folder-based) ---
+let videoList = []
 
-function addVideoCard() {
-	const id = Date.now()
-	videoCards.push( id )
-	const div = document.createElement( 'div' )
-	div.className = 'video-card'
-	div.id = `vc-${ id }`
-	div.innerHTML = `
-		<div class="video-card-header">
-			<input type="text" placeholder="Video ID" id="vid-${ id }" style="flex:1;min-width:0">
-			<button class="danger" onclick="removeVideoCard(${ id })">Remove</button>
+async function loadVideos() {
+	const container = document.getElementById( 'videoList' )
+	container.textContent = 'Loading videos...'
+	const res = await fetch( '/api/videos' )
+	videoList = await res.json()
+	renderVideoList()
+}
+
+function renderVideoList() {
+	const container = document.getElementById( 'videoList' )
+	if ( !videoList.length ) {
+		container.innerHTML = '<div style="color:#888;font-size:0.88rem">No video folders found in videos/</div>'
+		return
+	}
+	container.innerHTML = videoList.map( v => `
+		<div class="video-card" id="vf-${ esc( v.videoId ) }">
+			<div class="video-card-header">
+				<input type="checkbox" id="vcheck-${ esc( v.videoId ) }" value="${ esc( v.videoId ) }" style="margin-right:8px">
+				<span style="font-family:monospace;font-weight:600">${ esc( v.videoId ) }</span>
+				<span style="color:#888;font-size:0.8rem;margin-left:12px">langs: ${ esc( v.langs.join( ', ' ) ) }</span>
+				${ v.captionLangs.length ? `<span style="color:#888;font-size:0.8rem;margin-left:8px">captions: ${ esc( v.captionLangs.join( ', ' ) ) }</span>` : '' }
+				<button onclick="toggleVideoPreview('${ esc( v.videoId ) }')" style="margin-left:auto">▼ Preview</button>
+			</div>
+			<div id="vprev-${ esc( v.videoId ) }" style="display:none;padding:8px 0 0 24px"></div>
 		</div>
-		<div id="locs-${ id }" class="locs-list"></div>
-		<button onclick="addLocRow(${ id })" style="margin-top:6px;font-size:0.8rem">+ Add Language</button>
-	`
-	document.getElementById( 'videoBuilder' ).appendChild( div )
-	addLocRow( id )
+	` ).join( '' )
 }
 
-function removeVideoCard( id ) {
-	document.getElementById( `vc-${ id }` )?.remove()
-	videoCards = videoCards.filter( v => v !== id )
-}
+async function toggleVideoPreview( videoId ) {
+	const panel = document.getElementById( `vprev-${ videoId }` )
+	if ( panel.style.display !== 'none' ) {
+		panel.style.display = 'none'
+		return
+	}
+	panel.textContent = 'Loading...'
+	panel.style.display = 'block'
 
-function addLocRow( cardId ) {
-	const container = document.getElementById( `locs-${ cardId }` )
-	const rowId = Date.now()
-	const row = document.createElement( 'div' )
-	row.className = 'loc-row'
-	row.id = `lr-${ rowId }`
-	row.innerHTML = `
-		<input type="text" placeholder="Lang" class="loc-lang" name="loc-lang">
-		<input type="text" placeholder="Title" class="loc-title" name="loc-title">
-		<textarea placeholder="Description" class="loc-desc" rows="2" name="loc-desc"></textarea>
-		<button class="danger small" onclick="document.getElementById('lr-${ rowId }').remove()">✕</button>
-	`
-	container.appendChild( row )
+	const res = await fetch( `/api/videos/${ encodeURIComponent( videoId ) }` )
+	const data = await res.json()
+	if ( data.error ) {
+		panel.textContent = data.error
+		return
+	}
+
+	const locHtml = Object.entries( data.localizations ).map( ( [lang, loc] ) => `
+		<div style="margin-bottom:8px">
+			<div style="font-weight:600;color:#aaa;font-size:0.8rem;text-transform:uppercase">${ esc( lang ) }</div>
+			<div style="font-size:0.85rem"><b>${ esc( loc.title ) }</b></div>
+			<div style="font-size:0.78rem;color:#888;white-space:pre-wrap">${ esc( loc.description ) }</div>
+		</div>
+	` ).join( '' )
+
+	const capHtml = data.captions.length
+		? '<div style="font-size:0.8rem;color:#888;margin-top:4px">Captions: ' + data.captions.map( c => esc( c.langCode ) ).join( ', ' ) + '</div>'
+		: ''
+
+	panel.innerHTML = locHtml + capHtml
 }
 
 async function addAccount() {
@@ -268,25 +291,10 @@ async function runAutomation() {
 	const email = document.getElementById( 'runAccount' ).value
 	if ( !email ) return alert( 'Select an account' )
 
-	const videos = []
-	for ( const id of videoCards ) {
-		const videoId = document.getElementById( `vid-${ id }` ).value.trim()
-		if ( !videoId ) return alert( 'Fill in all Video IDs' )
+	const videoIds = Array.from( document.querySelectorAll( '#videoList input[type=checkbox]:checked' ) )
+		.map( cb => cb.value )
 
-		const localizations = {}
-		const rows = document.querySelectorAll( `#locs-${ id } .loc-row` )
-		rows.forEach( row => {
-			const lang = row.querySelector( '.loc-lang' ).value.trim()
-			const title = row.querySelector( '.loc-title' ).value.trim()
-			const description = row.querySelector( '.loc-desc' ).value.trim()
-			if ( lang && title ) localizations[lang] = { title, description }
-		} )
-
-		if ( !Object.keys( localizations ).length ) return alert( `Add at least one localization for video ${ videoId }` )
-		videos.push( { videoId, localizations, captions: [] } )
-	}
-
-	if ( !videos.length ) return alert( 'Add at least one video' )
+	if ( !videoIds.length ) return alert( 'Select at least one video' )
 
 	const log = document.getElementById( 'runLog' )
 	log.innerHTML = ''
@@ -294,7 +302,7 @@ async function runAutomation() {
 	const res = await fetch( '/api/run', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify( { accounts: [email], videos } )
+		body: JSON.stringify( { accounts: [email], videoIds } )
 	} )
 	const data = await res.json()
 	if ( data.error ) return alert( data.error )

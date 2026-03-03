@@ -1,18 +1,26 @@
 const { loadAccountAuth } = require( '../services/auth' )
 const { emitSSE } = require( './sse' )
 const updateMultipleVideosFull = require( '../services/video' )
+const { readVideoData } = require( '../services/videosFolder' )
 
 const router = require( 'express' ).Router()
 
 
 router.post( '/run', async ( req, res ) => {
-	const { accounts: emails, videos } = req.body
+	const { accounts: emails, videoIds } = req.body
 
 	if ( !emails || !emails.length )
 		return res.status( 400 ).json( { error: 'accounts required' } )
 
-	if ( !videos || !videos.length )
-		return res.status( 400 ).json( { error: 'videos required' } )
+	if ( !videoIds || !videoIds.length )
+		return res.status( 400 ).json( { error: 'videoIds required' } )
+
+	let videos
+	try {
+		videos = videoIds.map( id => readVideoData( id ) )
+	} catch ( err ) {
+		return res.status( 400 ).json( { error: err.message } )
+	}
 
 	res.json( { ok: true, message: 'Run started' } )
 
