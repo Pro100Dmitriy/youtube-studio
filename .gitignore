@@ -8,3 +8,4 @@ videos/**
 !videos/.gitkeep
 db.json
 .env
+.DS_Store

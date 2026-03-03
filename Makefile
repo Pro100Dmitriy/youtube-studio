@@ -1,6 +1,8 @@
 include .env
 export
 
+VERSION = 1.0
+
 IMAGE   ?= youtube-studio
 COMPOSE  = docker compose -f .docker/docker-compose.yml
 
@@ -22,9 +24,20 @@ restart:
 
 
 # ── Docker Hub ─────────────────────────────────────────────
+
+# ── AMD ─────────────────────────────────────────────
 build:
-	docker build -f .docker/Dockerfile -t $(IMAGE) .
+	docker build -f .docker/Dockerfile -t ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION) .
 push:
-	docker push $(IMAGE)
+	docker push ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION)
 pull:
-	docker pull $(IMAGE)
+	docker pull ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION)
+
+# ── AMD ─────────────────────────────────────────────
+build-amd:
+	DOCKER_BUILDKIT=1 docker buildx build --platform linux/amd64 -t ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION).AMD \
+    		-f .docker/Dockerfile .
+push-amd:
+	docker push ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION).AMD
+pull-amd:
+	docker pull ${DOCKER_REGISTRY}/$(IMAGE):$(VERSION).AMD
