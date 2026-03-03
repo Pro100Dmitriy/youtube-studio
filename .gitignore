@@ -2,3 +2,6 @@ client_secret.json
 token.json
 node_modules
 .idea
+accounts/*/token.json
+accounts/*/client_secret.json
+db.json

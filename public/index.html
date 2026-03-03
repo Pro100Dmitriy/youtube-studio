@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>YouTube Studio Panel</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<div class="dot"></div>
+			<h1>YouTube Studio</h1>
+			<span class="sse-status" id="sseStatus">● disconnected</span>
+		</div>
+
+		<!-- Phase 1: Proxies -->
+		<div class="section">
+			<h2>Proxies</h2>
+			<div class="row">
+				<input type="text" id="proxyAccess" placeholder="host:port:user:pass" style="min-width:300px">
+				<input type="text" id="proxyLabel" placeholder="Label (e.g. US Res 1)">
+				<button onclick="addProxy()">+ Add Proxy</button>
+			</div>
+			<table id="proxyTable">
+				<thead>
+				<tr>
+					<th>ID</th>
+					<th>Label</th>
+					<th>URL</th>
+					<th>Ping</th>
+					<th></th>
+				</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+
+		<!-- Phase 1: Accounts -->
+		<div class="section">
+			<h2>Accounts</h2>
+
+			<div class="row">
+				<input type="email" id="accountEmail" placeholder="user@gmail.com">
+				<select id="accountProxy">
+					<option value="">No proxy</option>
+				</select>
+				<button onclick="addAccount()">+ Add Account</button>
+			</div>
+
+			<table id="accountTable">
+				<thead>
+				<tr>
+					<th>Email</th>
+					<th>Proxy</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+
+		<!-- Phase 2: Automation -->
+		<div class="section automation">
+			<h2>Automation</h2>
+
+			<!-- Выбор аккаунта -->
+			<div class="row" style="margin-bottom:16px">
+				<label style="align-self:center;color:#888;font-size:0.88rem">Account:</label>
+				<select id="runAccount">
+					<option value="">— select account —</option>
+				</select>
+			</div>
+
+			<!-- Билдер видео -->
+			<div id="videoBuilder"></div>
+			<div class="row" style="margin-top:8px">
+				<button onclick="addVideoCard()">+ Add Video</button>
+			</div>
+
+			<div class="row" style="margin-top:16px">
+				<button class="primary" onclick="runAutomation()">▶ Run</button>
+			</div>
+
+			<div class="log" id="runLog">
+				<div class="log-entry info">Waiting for run...</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="scripts.js"></script>
+</body>
+</html>
