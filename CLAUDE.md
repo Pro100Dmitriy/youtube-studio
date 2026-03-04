@@ -39,6 +39,7 @@ Per-account credential files live at `accounts/<email>/client_secret.json` and `
 - `services/auth.js` — OAuth flow (Phase 1 & 2), proxy attachment
 - `services/video.js` — `updateMultipleVideosFull(authClient, videos)`: updates title/description localizations, then uploads/updates captions per video. 1s delay between captions, 2s between videos.
 - `services/captions.js` — `uploadOrUpdateCaption()` and `getExistingCaptions()` via YouTube Data API v3
+- `services/videosFolder.js` — reads local `videos/` directory to build video payloads. Each video has a folder at `videos/<videoId>/` containing `<lang>.txt` files and a `captions/` subdirectory with `.srt` files. `.txt` format uses `title { ... }` and `desc { ... }` blocks. Exposed via `GET /api/videos` and `GET /api/videos/:videoId`.
 
 ### Database
 

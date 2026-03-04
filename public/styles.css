@@ -57,7 +57,7 @@ h2 {
 .row {
 	display: flex;
 	gap: 12px;
-	align-items: flex-start;
+	align-items: center;
 	flex-wrap: wrap;
 	margin-bottom: 12px;
 }
@@ -136,6 +136,27 @@ button.danger:hover {
 	background: #400;
 }
 
+button.warning {
+	background: #2a1f00;
+	border-color: #554400;
+	color: #f5a623;
+}
+
+button.warning:hover {
+	background: #3a2c00;
+}
+
+button:disabled {
+	background: #1a1a1a;
+	border-color: #2a2a2a;
+	color: #444;
+	cursor: not-allowed;
+}
+
+button:disabled:hover {
+	background: #1a1a1a;
+}
+
 table {
 	width: 100%;
 	border-collapse: collapse;
@@ -195,6 +216,10 @@ tr:last-child td {
 
 .log-entry.running {
 	color: #aaf;
+}
+
+.log-entry.warning {
+	color: #f5a623;
 }
 
 .log-entry.info {

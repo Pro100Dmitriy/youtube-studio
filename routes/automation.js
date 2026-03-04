@@ -26,28 +26,46 @@ router.post( '/run', async ( req, res ) => {
 
 	// Run in background
 	;( async () => {
-		for ( const email of emails ) {
-			emitSSE( { type: 'run', email, status: 'started', message: 'Loading auth...' } )
+		const origLog = console.log
+		const origError = console.error
+		const origWarn = console.warn
 
-			try {
-				const authClient = await loadAccountAuth( email )
+		let currentEmail = null
+		const toMsg = args => args.map( a => typeof a === 'object' ? JSON.stringify( a ) : String( a ) ).join( ' ' )
 
-				emitSSE( { type: 'run', email, status: 'running', message: 'Updating videos...' } )
+		console.log = ( ...args ) => { origLog( ...args ); emitSSE( { type: 'run', email: currentEmail, status: 'running', message: toMsg( args ) } ) }
+		console.error = ( ...args ) => { origError( ...args ); emitSSE( { type: 'run', email: currentEmail, status: 'error', message: toMsg( args ) } ) }
+		console.warn = ( ...args ) => { origWarn( ...args ); emitSSE( { type: 'run', email: currentEmail, status: 'warning', message: toMsg( args ) } ) }
 
-				const results = await updateMultipleVideosFull( authClient, videos )
+		try {
+			for ( const email of emails ) {
+				currentEmail = email
+				emitSSE( { type: 'run', email, status: 'started', message: 'Loading auth...' } )
 
-				emitSSE( {
-					type: 'run',
-					email,
-					status: 'done',
-					message: `Done. Success: ${ results.success.length }, Failed: ${ results.failed.length }`
-				} )
-			} catch ( err ) {
-				emitSSE( { type: 'run', email, status: 'error', message: err.message } )
+				try {
+					const authClient = await loadAccountAuth( email )
+
+					emitSSE( { type: 'run', email, status: 'running', message: 'Updating videos...' } )
+
+					const results = await updateMultipleVideosFull( authClient, videos )
+
+					emitSSE( {
+						type: 'run',
+						email,
+						status: 'done',
+						message: `Done. Success: ${ results.success.length }, Failed: ${ results.failed.length }`
+					} )
+				} catch ( err ) {
+					emitSSE( { type: 'run', email, status: 'error', message: err.message } )
+				}
 			}
-		}
 
-		emitSSE( { type: 'run', email: null, status: 'all_done', message: 'All accounts processed' } )
+			emitSSE( { type: 'run', email: null, status: 'all_done', message: 'All accounts processed' } )
+		} finally {
+			console.log = origLog
+			console.error = origError
+			console.warn = origWarn
+		}
 	} )()
 } )
 

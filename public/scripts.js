@@ -36,13 +36,14 @@ function statusIcon( status ) {
 	if ( status === 'authorized' ) return '✅'
 	if ( status === 'authorizing' ) return '🔄'
 	if ( status === 'error' ) return '❌'
+	if ( status === 'no_credentials' ) return '📂'
 	return '⚪'
 }
 
 function appendRunLog( data ) {
 	const log = document.getElementById( 'runLog' )
 	const entry = document.createElement( 'div' )
-	const cls = data.status === 'error' ? 'error' : data.status === 'done' || data.status === 'all_done' ? 'done' : 'running'
+	const cls = data.status === 'error' ? 'error' : data.status === 'done' || data.status === 'all_done' ? 'done' : data.status === 'warning' ? 'warning' : 'running'
 	entry.className = `log-entry ${ cls }`
 	const prefix = data.email ? `[${ data.email }]` : '[system]'
 	entry.textContent = `${ prefix } ${ data.status }: ${ data.message || '' }`
@@ -81,7 +82,6 @@ function renderProxyTable() {
 
 	tbody.innerHTML = proxies.map( p => `
 		<tr>
-		  <td>${ esc( p.id ) }</td>
 		  <td>${ esc( p.label || '' ) }</td>
 		  <td style="font-family:monospace;font-size:0.8rem;color:#888">${ esc( p.url ) }</td>
 		  <td>
@@ -161,9 +161,9 @@ function renderAccountTable() {
           ${ proxyOpts }
         </select>
       </td>
-      <td><span class="status-icon">${ statusIcon( a.authorized ? 'authorized' : 'pending' ) }</span></td>
-      <td style="display:flex;gap:8px;flex-wrap:wrap">
-        <button onclick="authorizeAccount('${ esc( a.email ) }')">Authorize</button>
+      <td><span class="status-icon">${ statusIcon( !a.hasCredentials ? 'no_credentials' : a.authorized ? 'authorized' : 'pending' ) }</span></td>
+      <td style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="authorizeAccount('${ esc( a.email ) }')" ${ !a.hasCredentials ? 'disabled' : '' }>Authorize</button>
         <button class="danger" onclick="removeAccount('${ esc( a.email ) }')">Remove</button>
       </td>
     </tr>` ).join( '' )
@@ -182,6 +182,15 @@ function renderAccountSelect() {
 		authorized.map( a =>
 			`<option value="${ esc( a.email ) }">${ esc( a.email ) }${ a.proxyLabel ? ' (' + esc( a.proxyLabel ) + ')' : '' }</option>`
 		).join( '' )
+	updateRunBtn()
+}
+
+function updateRunBtn() {
+	const email = document.getElementById( 'runAccount' ).value
+	const account = accounts.find( a => a.email === email )
+	const needsProxy = !!email && !( account && account.proxyId )
+	document.getElementById( 'runBtn' ).disabled = needsProxy
+	document.getElementById( 'runBtnHint' ).style.display = needsProxy ? 'inline' : 'none'
 }
 
 // --- Videos (folder-based) ---
@@ -261,7 +270,15 @@ async function addAccount() {
 	await loadAccounts()
 }
 
+async function syncAccounts() {
+	const res = await fetch( '/api/accounts/sync', { method: 'POST' } )
+	accounts = await res.json()
+	renderAccountTable()
+	renderAccountSelect()
+}
+
 async function removeAccount( email ) {
+	if ( !confirm( `Remove account "${ email }" and delete its folder?` ) ) return
 	await fetch( `/api/accounts/${ encodeURIComponent( email ) }`, { method: 'DELETE' } )
 	await loadAccounts()
 }
@@ -272,6 +289,7 @@ async function changeProxy( email, proxyId ) {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify( { proxyId: proxyId || null } )
 	} )
+	await loadAccounts()
 }
 
 async function authorizeAccount( email ) {
