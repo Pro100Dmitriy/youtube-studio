@@ -42,11 +42,15 @@ async function updateVideoHeadingsWithLocalizations( authClient, videoId, locali
 		}
 
 		const defaultLang = video.snippet.defaultLanguage || 'ru'
-		const defaultLocalization = localizations[defaultLang] || Object.values( localizations )[0]
+		const defaultLocalization = localizations[defaultLang]
 
-		const mergedLocalizations = {
-			...( video.localizations || {} ),
-			...localizations
+		const mergedLocalizations = { ...( video.localizations || {} ) }
+		for ( const [lang, data] of Object.entries( localizations ) ) {
+			const existing = mergedLocalizations[lang] || {}
+			mergedLocalizations[lang] = {
+				title: data.title || existing.title || '',
+				description: data.description || existing.description || ''
+			}
 		}
 
 		const response = await youtube.videos.update( {
@@ -54,8 +58,8 @@ async function updateVideoHeadingsWithLocalizations( authClient, videoId, locali
 			requestBody: {
 				id: videoId,
 				snippet: {
-					title: defaultLocalization.title || video.snippet.title,
-					description: defaultLocalization.description || video.snippet.description,
+					title: ( defaultLocalization && defaultLocalization.title ) ? defaultLocalization.title : video.snippet.title,
+					description: ( defaultLocalization && defaultLocalization.description ) ? defaultLocalization.description : video.snippet.description,
 					categoryId: video.snippet.categoryId,
 					defaultLanguage: defaultLang
 				},
@@ -93,12 +97,16 @@ async function updateVideoFull( authClient, videoId, localizations, captions ) {
 		console.log( '\n📝 Обновляю локализации...' )
 
 		const defaultLang = video.snippet.defaultLanguage || Object.keys( localizations )[0]
-		const defaultLocalization = localizations[defaultLang] || Object.values( localizations )[0]
+		const defaultLocalization = localizations[defaultLang]
 
 		// Объединяем старые локализации с новыми
-		const mergedLocalizations = {
-			...( video.localizations || {} ),
-			...localizations
+		const mergedLocalizations = { ...( video.localizations || {} ) }
+		for ( const [lang, data] of Object.entries( localizations ) ) {
+			const existing = mergedLocalizations[lang] || {}
+			mergedLocalizations[lang] = {
+				title: data.title || existing.title || '',
+				description: data.description || existing.description || ''
+			}
 		}
 
 		await youtube.videos.update( {
@@ -106,8 +114,8 @@ async function updateVideoFull( authClient, videoId, localizations, captions ) {
 			requestBody: {
 				id: videoId,
 				snippet: {
-					title: defaultLocalization.title || video.snippet.title,
-					description: defaultLocalization.description || video.snippet.description,
+					title: ( defaultLocalization && defaultLocalization.title ) ? defaultLocalization.title : video.snippet.title,
+					description: ( defaultLocalization && defaultLocalization.description ) ? defaultLocalization.description : video.snippet.description,
 					categoryId: video.snippet.categoryId,
 					defaultLanguage: defaultLang
 				},

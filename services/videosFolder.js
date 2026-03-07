@@ -9,7 +9,7 @@ function parseTxtFile( filePath ) {
 	const extract = ( keyword ) => {
 		const re = new RegExp( keyword + '\\s*\\{([^}]*)\\}', 's' )
 		const m = text.match( re )
-		return m ? m[1].trim() : ''
+		return m ? m[1].trim() : null
 	}
 
 	return {
