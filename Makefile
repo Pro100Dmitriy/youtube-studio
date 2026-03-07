@@ -1,7 +1,8 @@
 include .env
 export
 
-VERSION = 1.1 # 1.0
+# VERSION = 1.0
+VERSION = 1.1
 
 IMAGE   ?= youtube-studio
 COMPOSE  = docker compose -f .docker/docker-compose.yml
