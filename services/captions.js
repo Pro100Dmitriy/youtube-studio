@@ -1,5 +1,6 @@
 const fs = require( 'fs' )
 const { google } = require( 'googleapis' )
+const { formatApiError } = require('./apiError.js')
 
 
 async function getExistingCaptions( authClient, videoId ) {
@@ -21,7 +22,7 @@ async function getExistingCaptions( authClient, videoId ) {
 
 		return captions
 	} catch ( error ) {
-		console.error( '❌ Ошибка получения субтитров:', error.message )
+		console.error( '❌ Ошибка получения субтитров:', formatApiError( error ) )
 		throw error
 	}
 }
@@ -82,7 +83,7 @@ async function uploadOrUpdateCaption( authClient, videoId, langCode, captionFile
 		console.log( `✅ Субтитры загружены: ${ langCode }` )
 		return response.data
 	} catch ( error ) {
-		console.error( `❌ Ошибка загрузки субтитров ${ langCode }:`, error.message )
+		console.error( `❌ Ошибка загрузки субтитров ${ langCode }:`, formatApiError( error ) )
 		throw error
 	}
 }

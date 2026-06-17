@@ -1,5 +1,6 @@
 const { google } = require( 'googleapis' )
 const { uploadOrUpdateCaption, getExistingCaptions } = require('./captions.js')
+const { formatApiError } = require('./apiError.js')
 
 
 async function getVideoInfo( authClient, videoId ) {
@@ -25,7 +26,7 @@ async function getVideoInfo( authClient, videoId ) {
 
 		return video
 	} catch ( error ) {
-		console.error( '❌ Ошибка получения информации:', error.message )
+		console.error( '❌ Ошибка получения информации:', formatApiError( error ) )
 		throw error
 	}
 }
@@ -72,7 +73,7 @@ async function updateVideoHeadingsWithLocalizations( authClient, videoId, locali
 
 		return response.data
 	} catch ( error ) {
-		console.error( '❌ Ошибка обновления описания:', error.message )
+		console.error( '❌ Ошибка обновления описания:', formatApiError( error ) )
 		throw error
 	}
 }
@@ -173,7 +174,7 @@ async function updateMultipleVideosFull( authClient, videos ) {
 			// Пауза между видео
 			await new Promise( resolve => setTimeout( resolve, 2000 ) )
 		} catch ( error ) {
-			console.error( `❌ Ошибка для видео ${ video.videoId }:`, error.message )
+			console.error( `❌ Ошибка для видео ${ video.videoId }:`, formatApiError( error ) )
 			results.failed.push( video.videoId )
 		}
 	}
