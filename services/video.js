@@ -1,6 +1,7 @@
 const { google } = require( 'googleapis' )
 const { uploadOrUpdateCaption, getExistingCaptions } = require('./captions.js')
 const { formatApiError } = require('./apiError.js')
+const { sanitizeText, sanitizeLocalizations, isMetadataError, TITLE_MAX_LEN, DESCRIPTION_MAX_LEN } = require('./sanitizeMetadata.js')
 
 
 async function getVideoInfo( authClient, videoId ) {
@@ -93,6 +94,9 @@ async function updateVideoFull( authClient, videoId, localizations, captions ) {
 	// Получаем текущие субтитры — один запрос для всех языков
 	const existingCaptions = await getExistingCaptions( authClient, videoId )
 
+	let metadataSanitized = false
+	let metadataError = null
+
 	// --- Обновляем локализации (title + description) ---
 	if ( localizations ) {
 		console.log( '\n📝 Обновляю локализации...' )
@@ -110,21 +114,46 @@ async function updateVideoFull( authClient, videoId, localizations, captions ) {
 			}
 		}
 
-		await youtube.videos.update( {
+		const defaultTitle = ( defaultLocalization && defaultLocalization.title ) ? defaultLocalization.title : video.snippet.title
+		const defaultDescription = ( defaultLocalization && defaultLocalization.description ) ? defaultLocalization.description : video.snippet.description
+
+		const sendUpdate = ( loc, title, description ) => youtube.videos.update( {
 			part: ['snippet', 'localizations'],
 			requestBody: {
 				id: videoId,
 				snippet: {
-					title: ( defaultLocalization && defaultLocalization.title ) ? defaultLocalization.title : video.snippet.title,
-					description: ( defaultLocalization && defaultLocalization.description ) ? defaultLocalization.description : video.snippet.description,
+					title,
+					description,
 					categoryId: video.snippet.categoryId,
 					defaultLanguage: defaultLang
 				},
-				localizations: mergedLocalizations
+				localizations: loc
 			}
 		} )
 
-		console.log( '✅ Локализации обновлены:', Object.keys( mergedLocalizations ).join( ', ' ) )
+		try {
+			try {
+				// Попытка 1: отправляем как есть (эмодзи сохраняются, если YouTube их принимает)
+				await sendUpdate( mergedLocalizations, defaultTitle, defaultDescription )
+			} catch ( error ) {
+				if ( !isMetadataError( error ) ) throw error
+
+				// Попытка 2: YouTube отклонил метаданные — повторяем с очищенным текстом
+				console.warn( '⚠️  Метаданные отклонены (эмодзи/символы) — повтор с очисткой' )
+				await sendUpdate(
+					sanitizeLocalizations( mergedLocalizations ),
+					sanitizeText( defaultTitle, TITLE_MAX_LEN ),
+					sanitizeText( defaultDescription, DESCRIPTION_MAX_LEN )
+				)
+				metadataSanitized = true
+			}
+
+			console.log( '✅ Локализации обновлены:', Object.keys( mergedLocalizations ).join( ', ' ) )
+		} catch ( error ) {
+			// Даже если метаданные обновить не удалось — не прерываем видео, идём к субтитрам
+			metadataError = formatApiError( error )
+			console.error( '❌ Не удалось обновить метаданные:', metadataError )
+		}
 	}
 
 	// --- Загружаем субтитры с теми же langCode ---
@@ -151,18 +180,22 @@ async function updateVideoFull( authClient, videoId, localizations, captions ) {
 	}
 
 	console.log( `\n✅ Видео ${ videoId } полностью обновлено!` )
+
+	return { sanitized: metadataSanitized, metadataError }
 }
 
 
 async function updateMultipleVideosFull( authClient, videos ) {
 	const results = {
 		success: [],
-		failed: []
+		failed: [],    // { videoId, error } — видео целиком не обработано
+		sanitized: [], // videoId — эмодзи/символы были удалены из метаданных
+		warnings: []   // { videoId, error } — метаданные не обновлены, но видео обработано
 	}
 
 	for ( const video of videos ) {
 		try {
-			await updateVideoFull(
+			const info = await updateVideoFull(
 				authClient,
 				video.videoId,
 				video.localizations,
@@ -171,11 +204,15 @@ async function updateMultipleVideosFull( authClient, videos ) {
 
 			results.success.push( video.videoId )
 
+			if ( info && info.sanitized ) results.sanitized.push( video.videoId )
+			if ( info && info.metadataError ) results.warnings.push( { videoId: video.videoId, error: info.metadataError } )
+
 			// Пауза между видео
 			await new Promise( resolve => setTimeout( resolve, 2000 ) )
 		} catch ( error ) {
-			console.error( `❌ Ошибка для видео ${ video.videoId }:`, formatApiError( error ) )
-			results.failed.push( video.videoId )
+			const formatted = formatApiError( error )
+			console.error( `❌ Ошибка для видео ${ video.videoId }:`, formatted )
+			results.failed.push( { videoId: video.videoId, error: formatted } )
 		}
 	}
 
@@ -184,8 +221,27 @@ async function updateMultipleVideosFull( authClient, videos ) {
 	console.log( '   ✅ Успешно:', results.success.length )
 	console.log( '   ❌ Ошибки :', results.failed.length )
 
+	if ( results.sanitized.length > 0 ) {
+		console.log( `\n🧹 Эмодзи/символы удалены (метаданные очищены) — ${ results.sanitized.length }:` )
+		for ( const videoId of results.sanitized ) {
+			console.log( `   - ${ videoId }` )
+		}
+	}
+
+	if ( results.warnings.length > 0 ) {
+		console.log( `\n⚠️  Метаданные не обновлены (видео обработано) — ${ results.warnings.length }:` )
+		for ( const { videoId, error } of results.warnings ) {
+			console.log( `   - ${ videoId }:` )
+			console.log( `${ error }`.replace( /^/gm, '       ' ) )
+		}
+	}
+
 	if ( results.failed.length > 0 ) {
-		console.log( '   Не обновлены:', results.failed.join( ', ' ) )
+		console.log( `\n❌ Не обновлены (ошибка) — ${ results.failed.length }:` )
+		for ( const { videoId, error } of results.failed ) {
+			console.log( `   - ${ videoId }:` )
+			console.log( `${ error }`.replace( /^/gm, '       ' ) )
+		}
 	}
 
 	return results
