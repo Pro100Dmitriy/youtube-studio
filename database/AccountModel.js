@@ -38,6 +38,18 @@ class AccountModel extends DatabaseJSON {
 		this.write( db )
 	}
 
+	setLastRun( email, timestamp ) {
+		const db = this.read()
+		const account = db.accounts.find( a => a.email === email )
+
+		if ( !account )
+			throw new Error( `Account ${ email } not found` )
+
+		account.lastRunAt = timestamp
+
+		this.write( db )
+	}
+
 	setProxy( email, proxyId ) {
 		const db = this.read()
 		const account = db.accounts.find( a => a.email === email )

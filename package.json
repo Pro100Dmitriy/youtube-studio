@@ -2,9 +2,9 @@
   "name": "youtube-studio",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "server.js",
   "scripts": {
-    "go": "node main.js",
+    "go": "node server.js",
     "server": "node server.js"
   },
   "author": "",
@@ -12,7 +12,6 @@
   "dependencies": {
     "express": "^5.2.1",
     "googleapis": "^171.4.0",
-    "https-proxy-agent": "^7.0.6",
-    "undici": "^7.22.0"
+    "https-proxy-agent": "^7.0.6"
   }
 }

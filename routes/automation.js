@@ -2,6 +2,7 @@ const { loadAccountAuth } = require( '../services/auth' )
 const { emitSSE } = require( './sse' )
 const updateMultipleVideosFull = require( '../services/video' )
 const { readVideoData } = require( '../services/videosFolder' )
+const AccountModel = require( '../database/AccountModel' )
 
 const router = require( 'express' ).Router()
 
@@ -48,6 +49,8 @@ router.post( '/run', async ( req, res ) => {
 					emitSSE( { type: 'run', email, status: 'running', message: 'Updating videos...' } )
 
 					const results = await updateMultipleVideosFull( authClient, videos )
+
+					AccountModel.setLastRun( email, new Date().toISOString() )
 
 					emitSSE( {
 						type: 'run',

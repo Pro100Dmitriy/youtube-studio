@@ -19,6 +19,9 @@ evtSource.onmessage = ( e ) => {
 	}
 	if ( data.type === 'run' ) {
 		appendRunLog( data )
+		if ( data.status === 'done' || data.status === 'all_done' ) {
+			loadAccounts()
+		}
 	}
 }
 
@@ -69,6 +72,30 @@ async function loadAccounts() {
 function init() {
 	loadProxies().then( () => loadAccounts() )
 	loadVideos()
+	setInterval( tickLastRun, 1000 )
+}
+
+function timeAgo( iso ) {
+	if ( !iso ) return '—'
+	const diff = Math.floor( ( Date.now() - new Date( iso ).getTime() ) / 1000 )
+	if ( diff < 60 ) return `${ diff } сек назад`
+	if ( diff < 3600 ) return `${ Math.floor( diff / 60 ) } мин назад`
+	if ( diff < 86400 ) return `${ Math.floor( diff / 3600 ) } ч назад`
+	return `${ Math.floor( diff / 86400 ) } д назад`
+}
+
+function tickLastRun() {
+	document.querySelectorAll( '.last-run' ).forEach( span => {
+		const ts = span.dataset.ts
+		span.textContent = timeAgo( ts )
+		span.title = ts ? new Date( ts ).toLocaleString() : ''
+		if ( !ts ) {
+			span.style.color = ''
+		} else {
+			const diff = Date.now() - new Date( ts ).getTime()
+			span.style.color = diff >= 86400000 ? '#5f5' : '#ffd633'
+		}
+	} )
 }
 
 // --- Proxies ---
@@ -146,7 +173,7 @@ async function pingProxy( id, btn ) {
 function renderAccountTable() {
 	const tbody = document.querySelector( '#accountTable tbody' )
 	if ( !accounts.length ) {
-		tbody.innerHTML = '<tr><td colspan="4" class="empty">No accounts added</td></tr>'
+		tbody.innerHTML = '<tr><td colspan="5" class="empty">No accounts added</td></tr>'
 		return
 	}
 	const proxyOpts = '<option value="">No proxy</option>' + proxies.map( p =>
@@ -162,6 +189,7 @@ function renderAccountTable() {
         </select>
       </td>
       <td><span class="status-icon">${ statusIcon( !a.hasCredentials ? 'no_credentials' : a.authorized ? 'authorized' : 'pending' ) }</span></td>
+      <td><span class="last-run" data-ts="${ esc( a.lastRunAt || '' ) }"></span></td>
       <td style="display:flex;gap:8px;flex-wrap:wrap;">
         <button onclick="authorizeAccount('${ esc( a.email ) }')" ${ !a.hasCredentials ? 'disabled' : '' }>Authorize</button>
         <button class="danger" onclick="removeAccount('${ esc( a.email ) }')">Remove</button>
@@ -173,6 +201,8 @@ function renderAccountTable() {
 		const sel = tbody.querySelector( `.proxy-select[data-email="${ a.email }"]` )
 		if ( sel && a.proxyId ) sel.value = a.proxyId
 	} )
+
+	tickLastRun()
 }
 
 function renderAccountSelect() {
